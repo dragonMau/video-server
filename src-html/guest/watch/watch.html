@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/guest/watch/styles.css">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-icon">
+            📺
+        </div>
+        <h1 id="videoTitle">Video</h1>
+        <div class="header-links">
+            <a href="#" id="link-back" class="playlist-link link" title="Back to playlist">
+                <div class="header-icon">
+                    ⬅️
+                </div>
+            </a>
+            <a href="/guest/guest.html" id="configure" class="home-link link hidden" title="Home">
+                <div class="header-icon">
+                    🏠
+                </div>
+            </a>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="video-container">
+            <div class="video-wrapper">
+                <iframe src="..." id="videoPlayer"
+                        loading="lazy" class="video-iframe"
+                        allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                        allowfullscreen="true"></iframe>
+                <p id="videoDescription" class="video-description"></p>
+            </div>
+            <div class="video-loading hidden">
+                Loading video...
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Thank you for your attention</p>
+    </footer>
+
+    <script src="/guest/funcs.js"></script>
+    <script src="/guest/watch/script.js"></script>
+</body>
+
+</html>

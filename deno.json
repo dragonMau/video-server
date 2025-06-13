@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+		"lib": [ "deno.ns", "dom" ]
+	},
+	"tasks": {
+		"test": "deno lint ./edge/src/main.ts",
+		"dev": "./edge/dev.bat"
+	},
+	"nodeModulesDir": "auto"
+}
+	

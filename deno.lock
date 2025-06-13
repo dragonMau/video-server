@@ -1,0 +1,7 @@
+{
+  "version": "5",
+  "remote": {
+    "https://esm.sh/@bunny.net/edgescript-sdk@0.10.0": "83008f8f6ffd1e06a73b8c8e90d1986a68f8322239b37d90820b2db36f40167e",
+    "https://esm.sh/@bunny.net/edgescript-sdk@0.10.0/denonext/edgescript-sdk.mjs": "cadbbba07da5906be2ca59d95877a4ebc82aa372acdca827c1dbcf4c0474ce03"
+  }
+}

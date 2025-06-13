@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlist Gallery</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/guest/styles.css">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-icon">
+            📺
+        </div>
+        <h1>Playlists</h1>
+        <a href="/admin" id="configure" class="gear-link link">
+            <div class="header-icon">
+                ⚙️
+            </div>
+        </a>
+    </header>
+
+    <main class="main-content">
+        <div class="loading-placeholder" id="loadingPlaceholder">
+            <div class="spinner"></div>
+            Loading content...
+        </div>
+
+        <div class="playlist-grid hidden" id="playlistGrid">
+            <!-- Placeholder template for cloning -->
+            <div class="playlist-card link hidden" id="playlistTemplate">
+                <div class="playlist-thumbnail">
+                    <img src="" alt="Playlist thumbnail">
+                    <div class="play-overlay">▶</div>
+                </div>
+                <div class="playlist-info">
+                    <h3 class="playlist-title"></h3>
+                    <div class="playlist-length">
+                        <span>🎬</span>
+                        <span class="length-text"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-message hidden" id="errorMessage">
+            Failed to load content. Please try again later.
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Thank you for your attention</p>
+    </footer>
+
+    <script src="/guest/funcs.js"></script>
+    <script src="/guest/script.js"></script>
+</body>
+
+</html>
