@@ -1,0 +1,36 @@
+name: Deploy when pushing on main edge/src/main.ts
+
+on: 
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'edge/src/main.ts'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    name: 'Upload script'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: 2.3.5
+      
+      - name: Test Deno script
+        run: deno task test
+
+      - name: Publish the script to Bunny
+        uses: 'BunnyWay/actions/deploy-script@main'
+        with:
+          file: "./edge/src/main.ts"
+          script_id: ${{ secrets.SCRIPT_ID }}

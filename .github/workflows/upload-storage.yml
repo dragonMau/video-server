@@ -1,0 +1,48 @@
+name: Upload src-html to Bunny.net Storage
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'src-html/**'
+
+permissions:
+  id-token: write
+  contents: read
+  
+jobs:
+  upload-to-bunny:
+    runs-on: ubuntu-latest
+    if: github.event.commits[0].modified != null || github.event.commits[0].added != null || github.event.commits[0].removed != null
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find changed files in src-html
+        id: changed-files
+        run: |
+          git fetch origin ${{ github.event.before }}
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src-html/' || true
+        shell: bash
+        continue-on-error: true
+
+      - name: Upload changed files to Bunny.net
+        if: steps.changed-files.outputs.files != ''
+        env:
+          BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          BUNNY_STORAGE_HOST: ${{ secrets.BUNNY_STORAGE_HOST }}
+          BUNNY_STORAGE_API_KEY: ${{ secrets.BUNNY_STORAGE_API_KEY }}
+        run: |
+          set -e
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src-html/' || true)
+          for file in $CHANGED_FILES; do
+            REL_PATH="${file#src-html/}"
+            curl --request PUT \
+              --url "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/$REL_PATH" \
+              --header "AccessKey: $BUNNY_STORAGE_API_KEY" \
+              --header "Content-Type: application/octet-stream" \
+              --header "accept: application/json" \
+              --data-binary @"$file"
+          done
+        shell: bash
