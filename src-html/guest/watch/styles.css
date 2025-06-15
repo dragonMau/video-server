@@ -87,7 +87,7 @@
         transform: rotate(360deg);
     }
 }
-@media (max-width: 480px) {
+@media (max-width: 800px) {
     .video-wrapper {
         width: 100%;
     }
