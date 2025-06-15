@@ -3,7 +3,7 @@ name: Upload src-html to Bunny.net Storage
 on:
   push:
     branches:
-      - 'main'
+      - 'master'
     paths:
       - 'src-html/**'
 
