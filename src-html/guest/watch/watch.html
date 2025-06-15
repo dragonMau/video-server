@@ -5,18 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Player</title>
+    <link rel="icon" type="image/png" href="/icon.png">
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/guest/watch/styles.css">
 </head>
 
 <body>
     <header class="header">
-        <div class="header-icon">
-            📺
-        </div>
+        <a href="/guest/guest.html" class="link"  onclick="localStorage.clear();">
+            <div class="header-icon">
+                <img src="/icon.png" alt="TV icon" class="icon-img"
+                    onerror="this.parentElement.textContent = '📺'; this.classList.add('hidden')">
+            </div>
+        </a>
         <h1 id="videoTitle">Video</h1>
         <div class="header-links">
-            <a href="#" id="link-back" class="playlist-link link" title="Back to playlist">
+            <a href="#" id="link-back" class="link" title="Back to playlist">
                 <div class="header-icon">
                     ⬅️
                 </div>

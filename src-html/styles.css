@@ -9,6 +9,32 @@
     cursor: pointer;
 }
 
+.link {
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+}
+.link:hover .header-icon {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.header-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+}
+.icon-img {
+    width: 2rem;
+    height: 2rem;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -31,19 +57,6 @@ body {
     box-sizing: border-box;
 }
 
-.header-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
-}
-
 .header h1 {
     color: white;
     font-size: 2rem;
@@ -54,16 +67,6 @@ body {
 .gear-link {
     text-decoration: none;
     color: inherit;
-}
-
-
-.home-link {
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.3s ease;
-}
-.home-link:hover .header-icon {
-    background: rgba(255, 255, 255, 0.3);
 }
 
 .main-content {

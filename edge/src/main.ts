@@ -108,11 +108,13 @@ BunnySDK.net.http.serve(async (req: Request): Promise<Response> => {
                 item.embedUrl = getEmbedUrl(item.guid);
             }
         }
-
         return new Response(JSON.stringify(data), {
             headers: {
                 "content-type": "application/json",
-                "Access-Control-Allow-Origin": "https://chasidustv.com"
+                "Access-Control-Allow-Origin":
+                    url.hostname === "localhost" || url.hostname === "127.0.0.1"
+                        ? "http://127.0.0.1:5500"
+                        : "https://api.chasidustv.com"
             }
         });
     } catch (error) {

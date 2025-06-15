@@ -1,24 +1,3 @@
-.header-links {
-    display: flex;
-    gap: 8px;
-}
-
-.playlist-link {
-    color: inherit;
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
-
-.playlist-link:hover .header-icon {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.playlist-link:focus .header-icon,
-.home-link:focus .header-icon {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
-    outline-offset: 2px;
-}
-
 .video-container {
     display: flex;
     align-items: start;
