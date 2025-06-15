@@ -19,6 +19,7 @@ function initializeEnv(): void {
         env.CDNHostname = getEnv("CDNHostname");
         env.VideoHostName = getEnv("VideoHostName");
         env.QueryParams = getEnv("QueryParams");
+        env.AllowedReferers = getEnv("AllowedReferers");
 
         console.log(`[INFO]: Environment variables loaded successfully`);
         isEnvInitialized = true;
@@ -111,10 +112,7 @@ BunnySDK.net.http.serve(async (req: Request): Promise<Response> => {
         return new Response(JSON.stringify(data), {
             headers: {
                 "content-type": "application/json",
-                "Access-Control-Allow-Origin":
-                    url.hostname === "localhost" || url.hostname === "127.0.0.1"
-                        ? "http://127.0.0.1:5500"
-                        : "https://api.chasidustv.com"
+                "Access-Control-Allow-Origin": env.AllowedReferers
             }
         });
     } catch (error) {
