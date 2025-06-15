@@ -1,4 +1,4 @@
-name: Upload src-html to Bunny.net Storage
+name: Upload all src-html to Bunny.net Storage
 
 on:
   push:
@@ -10,32 +10,36 @@ on:
 permissions:
   id-token: write
   contents: read
-  
+
 jobs:
-  upload-to-bunny:
+  upload-all-to-bunny:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Find changed files in src-html
-        id: changed-files
-        run: |
-          git fetch origin ${{ github.event.before }}
-          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src-html/' || true
-        shell: bash
-        continue-on-error: true
-
-      - name: Upload changed files to Bunny.net
-        if: steps.changed-files.outputs.files != ''
+      - name: Clear Bunny.net storage zone
         env:
           BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
           BUNNY_STORAGE_HOST: ${{ secrets.BUNNY_STORAGE_HOST }}
           BUNNY_STORAGE_API_KEY: ${{ secrets.BUNNY_STORAGE_API_KEY }}
         run: |
-          set -e
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src-html/' || true)
-          for file in $CHANGED_FILES; do
+          # List all files in the storage zone
+          FILES=$(curl -s -H "AccessKey: $BUNNY_STORAGE_API_KEY" "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/?list" | jq -r '.[].ObjectName')
+          for file in $FILES; do
+            curl -X DELETE \
+              -H "AccessKey: $BUNNY_STORAGE_API_KEY" \
+              "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/$file"
+          done
+        shell: bash
+
+      - name: Upload all files from src-html to Bunny.net
+        env:
+          BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          BUNNY_STORAGE_HOST: ${{ secrets.BUNNY_STORAGE_HOST }}
+          BUNNY_STORAGE_API_KEY: ${{ secrets.BUNNY_STORAGE_API_KEY }}
+        run: |
+          find src-html -type f | while read file; do
             REL_PATH="${file#src-html/}"
             curl --request PUT \
               --url "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/$REL_PATH" \
