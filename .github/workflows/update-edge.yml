@@ -3,7 +3,7 @@ name: Deploy when pushing on main edge/src/main.ts
 on: 
   push:
     branches:
-      - 'main'
+      - 'master'
     paths:
       - 'edge/src/main.ts'
 
