@@ -18,20 +18,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Clear Bunny.net storage zone
-        env:
-          BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
-          BUNNY_STORAGE_HOST: ${{ secrets.BUNNY_STORAGE_HOST }}
-          BUNNY_STORAGE_API_KEY: ${{ secrets.BUNNY_STORAGE_API_KEY }}
-        run: |
-          # List all files in the storage zone
-          FILES=$(curl -s -H "AccessKey: $BUNNY_STORAGE_API_KEY" "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/?list" | jq -r '.[].ObjectName')
-          for file in $FILES; do
-            curl -X DELETE \
-              -H "AccessKey: $BUNNY_STORAGE_API_KEY" \
-              "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/$file"
-          done
-        shell: bash
+      # - name: Clear Bunny.net storage zone
+      #   env:
+      #     BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+      #     BUNNY_STORAGE_HOST: ${{ secrets.BUNNY_STORAGE_HOST }}
+      #     BUNNY_STORAGE_API_KEY: ${{ secrets.BUNNY_STORAGE_API_KEY }}
+      #   run: |
+      #     # List all files in the storage zone
+      #     FILES=$(curl -s -H "AccessKey: $BUNNY_STORAGE_API_KEY" "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/?list" | jq -r '.[].ObjectName')
+      #     for file in $FILES; do
+      #       curl -X DELETE \
+      #         -H "AccessKey: $BUNNY_STORAGE_API_KEY" \
+      #         "https://$BUNNY_STORAGE_HOST/$BUNNY_STORAGE_ZONE/$file"
+      #     done
+      #   shell: bash
 
       - name: Upload all files from src-html to Bunny.net
         env:
