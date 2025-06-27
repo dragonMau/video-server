@@ -1,0 +1,24 @@
+- edit init_video, meaning:
+    - update sec-v2 init_video.txt value
+    - run combine.py
+    - upload new out-v2 index.html to bunny
+
+- decorate the design:
+    - change structure of main
+    - add colors
+    - add borders
+    - add fonts
+
+- finish structure:
+    - init page
+    - make side menu and bottom menu items linkable and auto-generating
+    - make tags in description linkable to video list page
+    - make video source box linkable too
+    - playlist list page (plain list of playlists probably)
+    - video list + watch page
+    - way to send tag from side to down menu:
+        - maybe just list of names of down menu and if matches, it is there.
+
+- add control panel or smth:
+    - ability to edit video description
+    - ability to request structure update (to update tags and lists)
