@@ -3,6 +3,9 @@ from pathlib import Path
 import os
 import requests
 import re
+import sys
+import hashlib
+import json
 
 env_file = Path('./edge/.env.local')
 if env_file.exists():
@@ -10,61 +13,56 @@ if env_file.exists():
 else:
     env = dict(os.environ)
 
-
 type_video = dict[str, str|list[str]]
 type_collection = dict[str, str|list[type_video]]
-@dataclass
-class SideBarItem:
-    url: str
-    name: str
-    def html(self) -> str:
-        return f'<li><a href="{self.url}">{self.name}</a></li>'
-    @staticmethod
-    def from_tuple(input: tuple[str, str]):
-        return SideBarItem(name=input[0], url=input[1])
 
-class SideBarItems:
-    def __init__(self, items: list[SideBarItem]):
-        self.items = [item for item in items]
-    def append(self, item: SideBarItem):
-        self.items.append(item)
-    def html(self):
-        return '\n'.join(
-            [item.html() for item in self.items]
-        )
-    @staticmethod
-    def from_list(input: list[tuple[str, str]]):
-        return SideBarItems((
-            SideBarItem.from_tuple(item) for item in input
-        ))
-    
-@dataclass
-class DownBarItem:
-    url: str
-    name: str
-    def html(self) -> str:
-        if not self.url:
-            return f'<div><p>{self.name}</p></div>'
-        return f'<div><p><a href="{self.url}">{self.name}</a></p></div>'
-    @staticmethod
-    def from_tuple(input: tuple[str, str]):
-        return DownBarItem(name=input[0], url=input[1])
+OFFLINE_MODE = "--offline" in sys.argv
+CACHE_DIR = "cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
+def _make_cache_filename(url, params):
+    """
+    Build a filename based on the URL and params.
+    """
+    key = url
+    if params:
+        # Create a deterministic string from params
+        param_items = sorted(params.items())
+        key += json.dumps(param_items)
+    # Hash the key for filesystem safety
+    hashed = hashlib.sha256(key.encode()).hexdigest()
+    return os.path.join(CACHE_DIR, f"{hashed}.json")
+def get_request(url, **kwargs):
+    """
+    A wrapper around requests.get which supports offline mode.
+    """
+    params = kwargs.get("params")
+    cache_file = _make_cache_filename(url, params)
 
-class DownBarItems:
-    def __init__(self, items: list[DownBarItem]):
-        self.items = [item for item in items]
-    def append(self, item: DownBarItem):
-        self.items.append(item)
-    def html(self):
-        return '\n'.join(
-            [item.html() for item in self.items]
-        )
-    @staticmethod
-    def from_list(input: list[tuple[str, str]]):
-        return DownBarItems((
-            DownBarItem.from_tuple(item) for item in input
-        ))
-
+    if OFFLINE_MODE:
+        if os.path.exists(cache_file):
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+            # Simulate a Response object
+            response = requests.Response()
+            response.status_code = cached["status_code"]
+            response._content = cached["content"].encode("utf-8")
+            response.headers = cached["headers"]
+            response.url = cached["url"]
+            return response
+        else:
+            raise FileNotFoundError(f"No cached response for {url}")
+    else:
+        response = requests.get(url, **kwargs)
+        # Cache the result
+        cached_data = {
+            "status_code": response.status_code,
+            "content": response.text,
+            "headers": dict(response.headers),
+            "url": response.url,
+        }
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(cached_data, f, indent=2)
+        return response
 def clear_directory(dir_path):
     p = Path(dir_path)
     for item in p.iterdir():
@@ -73,28 +71,23 @@ def clear_directory(dir_path):
         elif item.is_dir():
             clear_directory(item)
             item.rmdir()
-                
-
 def get_collections():
     url = f"https://video.bunnycdn.com/library/{env['LibraryID']}/collections?page=1&itemsPerPage=100&orderBy=date&includeThumbnails=true"
 
-    response = requests.get(url, headers={
+    response = get_request(url, headers={
         "accept": "application/json",
         "AccessKey": env['AccessKey']
     })
     return response.json()
-
 def get_videos(collection_id):
     url = f"https://video.bunnycdn.com/library/{env['LibraryID']}/videos?page=1&itemsPerPage=100&orderBy=date"
     url += '&collection=' + collection_id
 
-    response = requests.get(url, headers={
+    response = get_request(url, headers={
         "accept": "application/json",
         "AccessKey": env['AccessKey']
     })
     return response.json()
-
-
 def parse_groups(text):
     """
     Parses tags from text. 
@@ -110,25 +103,22 @@ def parse_groups(text):
     # filter tags that contain exactly one dot
     tags = [tag.strip() for tag in matches if tag.count('.') == 1]
     return tags
-
 def replace_all(_in: str, keys: dict[str, str]) -> str:
     text = _in
     for k, v in keys.items():
         text = text.replace(k, v)
     return text
-
 def get_by_name(_in: list[dict[str, str]], property: tuple[str, str], default=None):
     for el in _in:
         if el.get(property[0]) == property[1]:
             return el
     return default
-
 def get_collections_playlists():
     COLLECTIONS: list[type_collection] = []
     PLAYLISTS: dict[str, dict[str, type_video]] = {}
     for col in get_collections()['items']:
         # read items.(guid, name, videoCount); add items.(previewImageUrl)
-        new_collection: dict[str, str|list] =  {
+        new_collection: type_collection =  {
             'name': col['name'],
             'guid': col['guid'],
             'videoCount': col['videoCount'],
@@ -137,7 +127,7 @@ def get_collections_playlists():
         }
         # print(get_videos(col['guid']))
         for vid in get_videos(col['guid'])['items']:
-            new_video = {
+            new_video: type_video = {
                 'name': vid['title'],
                 'guid': vid['guid'],
                 'length': vid['length'],
@@ -145,14 +135,14 @@ def get_collections_playlists():
                 'embedUrl':  f'https://{env["VideoHostName"]}/embed/{env["LibraryID"]}/{vid["guid"]}{env["QueryParams"]}',
                 'description': 
                     f"<h2>{vid['title']}</h2>\n" +\
-                    get_by_name(vid['metaTags'], ('property', 'description'), default={}).get('value', '') +\
-                    f'\n#All Videos.{new_collection["name"]}',
-                'groups': []
+                    get_by_name(vid['metaTags'], ('property', 'description'), default={}).get('value', ''),
+                'groups': [f'All Videos.{new_collection["name"]}']
             }
-            new_video['groups'] = parse_groups(new_video['description'])
+            new_video['groups'].extend(parse_groups(new_video['description']))
+            new_video["description"] += '\n'
             for group in new_video['groups']:
-                if PLAYLISTS.get(group) is None:
-                    PLAYLISTS[group] = {}
+                # add to playlist
+                if group not in PLAYLISTS: PLAYLISTS[group] = {}
                 video_name = new_video['name']
                 if video_name in PLAYLISTS[group]:
                     i = 1
@@ -160,9 +150,77 @@ def get_collections_playlists():
                         i += 1
                     video_name = f'({i}){video_name}'
                 PLAYLISTS[group][video_name] = new_video
+                new_video["description"] = new_video["description"].replace(f"#{group}\n", "")
+                new_video["description"] += f'<a href="#">#{group}</a>\n'
+                print("WARNING: Generate link url for tags in description!!!")
             new_collection['videos'].append(new_video)
         COLLECTIONS.append(new_collection)
     return COLLECTIONS, PLAYLISTS
+def copy_through(file_name: str):
+    (out_dir/file_name).write_bytes(
+        (src_dir/file_name).read_bytes()
+    )
+def process_keys(keys: dict[str, str|list|dict], len_base=None) -> tuple[dict[str, int], dict[str, str]]:
+    new_keys = dict()
+    len_base = len_base or dict()
+    clean = True
+    for k, v in keys.items():
+        if isinstance(v, list):
+            clean = False
+            len_base[k] = len(v)
+            for i, el in enumerate(v):
+                new_keys[f"{k}.{i}"] = el
+        elif isinstance(v, dict):
+            clean = False
+            for ik, el in v.items():
+                new_keys[f"{k}.{ik}"] = el
+        else:
+            new_keys[k] = v
+    if not clean:
+        return process_keys(new_keys, len_base)
+    
+    # add brackets {}
+    final_dict = dict()
+    for k, v in new_keys.items():
+        final_dict["{"+k+"}"] = v
+    return len_base, final_dict
+def update_template(template_text: str, len_base: dict[str, int]) -> str:
+    """
+    Replaces all $key$(...) blocks in template_text with repeated content.
+    """
+    # Pattern matches:
+    # $key$( ... )
+    pattern = re.compile(
+        r'\$(\w+)\$\((.*?)\)',
+        re.DOTALL
+    )
+    
+    def replacer(match: re.Match):
+        key = match.group(1)  # side_bar_items
+        block = match.group(2) # <li><a href="{$.url}">{$.name}</a></li>
+        
+        n = len_base[key]
+        
+        results = []
+        for idx in range(n):
+            text = block
+            
+            # Replace $ with key.index
+            text = text.replace("$", f"{key}.{idx}")
+            
+            results.append(text)
+        
+        return "".join(results)
+    
+    # Perform replacement
+    updated_text = pattern.sub(replacer, template_text)
+    return updated_text
+def format_page(_in: str, keys_temp: dict[str, str|list[str]]) -> str:
+    len_base, keys_temp = process_keys(keys_temp)
+    new_page_temp = update_template(_in, len_base)
+    new_page = replace_all(new_page_temp, keys_temp)
+    return new_page
+
 
 # prepare out
 out_dir = Path('./out-html-v2')
@@ -172,44 +230,62 @@ clear_directory(out_dir)
 
 # make it!
 COLLECTIONS, PLAYLISTS = get_collections_playlists()
+from pprint import pprint
+pprint(PLAYLISTS)
 
-init_page = (src_dir/'index.html').read_text()
 init_video = (src_dir/'init_video.txt').read_text().strip()
 init_video_playlist, init_video_name = init_video.split('\n')
 init_video_obj = PLAYLISTS[init_video_playlist][init_video_name]
 
-formatted_init_page = replace_all(init_page,
+init_page = (src_dir/'index.html').read_text()
+formatted_init_page = format_page(init_page,
     {
-        '{title}': "Video Viewer",
-        '{phrase_up}': "Upper Phrase",
-        '{phrase_down}': "Bottom Phrase",
-        '{init_video.link}': init_video_obj['embedUrl'],
-        '{init_video.description}': init_video_obj['description'],
-        '{init_video.source}': init_video_playlist,
-        '{side_bar_items}': SideBarItems.from_list([
-                ("Home", "./"),
-                ("Content1", "#"),
-                ("All Videos", "#")
-            ]).html(),
-        '{down_bar_items}': DownBarItems.from_list([
-                ("Content1", "#"),
-                ("Content2", "#"),
-                ("Content3", "#"),
-                ("Content4", "#"),
-                ("Content5", "#"),
-                ("Content6", "#"),
-                ("Content7", "#"),
-                ("Shonot", "#"),
-            ]).html(),
+        'title': "Video Viewer",
+        'phrase_up': "Upper Phrase",
+        'phrase_down': "Bottom Phrase",
+        'init_video': {
+            'link': init_video_obj['embedUrl'],
+            'description': init_video_obj['description'],
+            'source': init_video_playlist,
+        },
+        'side_bar_items': [
+            {"name": "Home", "url": "/"},
+            {"name": "Content1", "url": "#"},
+            {"name": "All Videos", "url": "/All Videos"},
+        ],
+        'down_bar_items': [
+            {"name": "Content1", "url":  "#"},
+            {"name": "Content2", "url":  "#"},
+            {"name": "Content3", "url":  "#"},
+            {"name": "Content4", "url":  "#"},
+            {"name": "Content5", "url":  "#"},
+            {"name": "Content6", "url":  "#"},
+            {"name": "Content7", "url":  "#"},
+            {"name": "Shonot", "url":  "#"},
+        ],
     }
 )
 (out_dir/'index.html').write_text(formatted_init_page)
 
 
-init_styles = (src_dir/'styles.css').read_text()
-(out_dir/'styles.css').write_text(init_styles)
+groups_template = (src_dir/'groups.html').read_text()
 
 
-(out_dir/'media'/'no_image.svg').write_bytes(
-    (src_dir/'no_image.svg').read_bytes()
+groups_page = replace_all(groups_template,
+    {
+        '{title}': "Video Viewer",
+        '{phrase_up}': "Upper Phrase",
+        '{phrase_down}': "Bottom Phrase",
+        '{directory}': "All Videos",
+    }
 )
+(out_dir/'All Videos').mkdir()
+(out_dir/'All Videos'/'index.html').write_text(groups_page)
+
+
+copy_through('styles.css')
+copy_through('media/no_image.svg')
+copy_through('media/home.svg')
+
+if '--local-test' in sys.argv:
+    os.system('python -m http.server -dout-html-v2')

@@ -5,6 +5,7 @@ import urllib
 import time
 import ctypes
 import os
+import hashlib
 
 env_file = Path('./edge/.env.local')
 if env_file.exists():
@@ -20,6 +21,7 @@ prefix = '03_hitvaaduyot/'
 class UnsuccesfulUpload(requests.exceptions.HTTPError): pass
 class ConnctionIssue(requests.exceptions.HTTPError): pass
 class UnexpectedJson: pass
+
 def print_nl(*args, **kwargs):
     LINECLS = "\x1b[2K\r"
     print(LINECLS, end='')
@@ -40,6 +42,13 @@ class ProgressFileReader:
             self.read_bytes += len(chunk)
             print(f"  {self.read_bytes:,} / {self.total:,} bytes", end='\r')
         return chunk
+
+    def seek(self, offset, whence=0):
+        self.file.seek(offset, whence)
+        self.read_bytes = self.file.tell()
+
+    def tell(self):
+        return self.file.tell()
 
     def __len__(self):
         return self.total
@@ -158,6 +167,55 @@ def upload_video(video_id: str, video_path: str):
             )
         return response.json()
 
+def upload_video_tus(video_id: str, collection_id:str, video_path: str):
+    print_nl(f"uploading video with TUS '{str(video_path)}'..", end='\r')
+    time.sleep(1)
+    try:
+        from tusclient import client
+        from tusclient.exceptions import TusUploadFailed
+    except:
+        print_nl("TUS Failed, falling to regular upload.")
+        print_nl(f"uploading video with PUT '{str(video_path)}'..", end='\r')
+        return upload_video(video_id, video_path)
+
+    expiration_time = str(int(time.time() + Path(video_path).stat().st_size / 1024))
+    library_id = str(env['LibraryID'])
+    api_key = str(env['AccessKey'])
+    endpoint = str("https://video.bunnycdn.com/tusupload")
+    signature = hashlib.sha256(
+        (library_id + api_key + expiration_time + video_id).encode()
+    ).hexdigest()
+    my_client = client.TusClient(endpoint, headers={
+        "AuthorizationSignature": signature,
+        "AuthorizationExpire": expiration_time,
+        "VideoId": video_id,
+        "LibraryId": library_id
+    })
+    with open(video_path, 'rb') as file:
+        uploader = my_client.uploader(
+            file_stream=file,
+            chunk_size=1024*1024*5,
+            metadata={
+                "filetype": "video/mp4",
+                "title": Path(video_path).name,
+                "collection": collection_id
+        })
+        
+        uploader.stop_at = uploader.get_file_size()
+        if not uploader.url:
+            uploader.set_url(uploader.create_url())
+            uploader.offset = 0
+        while uploader.offset < uploader.stop_at:
+            try:
+                uploader.upload_chunk()
+            except TusUploadFailed as e:
+                print(f"\nTusUploadFailed:\n  exception={e};\n  status_code={e.status_code};\n  response_content={e.response_content};")
+                time.sleep(30)
+            print_nl(f"  TUS: {uploader.offset:,} / {uploader.stop_at:,} bytes", end='\r')
+
+    return 'OK'
+
+
 def delete_video(video_id):
     print_nl(f"deleting video '{video_id}'..", end='\r')
     time.sleep(1)
@@ -229,7 +287,7 @@ def main():
                         delete_video(vid_guid)
                         response = create_video(vid_name, col_guid)
                         vid_guid = response['guid']
-                    response = upload_video(vid_guid, file)
+                    response = upload_video_tus(vid_guid, col_guid, file)
                     print_nl(response)
 
 if __name__ == "__main__":
@@ -240,7 +298,7 @@ if __name__ == "__main__":
             main()
         except KeyboardInterrupt:
             print_nl('Interrupted.')
-        except ConnctionIssue as e:
+        except (ConnctionIssue, requests.exceptions.ConnectionError) as e:
             print('\n', e)
             repeat = True
             time.sleep(30)

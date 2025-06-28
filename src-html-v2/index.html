@@ -17,13 +17,14 @@
                 <nav>
                     <h3></h3>
                     <ul>
-                        {side_bar_items}
+                        $side_bar_items$(<li><a href="{$.url}">{$.name}</a></li>
+                        )
                     </ul>
                 </nav>
             </div>
         </header>
         <main>
-        <p class="video_source">{init_video.source}</p>
+            <p class="directory">{init_video.source}</p>
             <div class="video_container">
                 <div class="video_wrapper">
                     <iframe src="{init_video.link}" id="videoPlayer" loading="lazy" class="video_iframe"
@@ -31,11 +32,12 @@
                         allowfullscreen="true"></iframe>
                 </div>
                 <p id="videoDescription" class="video_description">
-                    <pre>{init_video.description}</pre>
+                <pre>{init_video.description}</pre>
                 </p>
             </div>
             <div class="rabbeim">
-                {down_bar_items}
+                $down_bar_items$(<div><p><a href="{$.url}">{$.name}</a></p></div>
+                )
             </div>
         </main>
         <footer>

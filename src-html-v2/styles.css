@@ -146,8 +146,6 @@ nav li {
 }
 
 
-/* additions */
-
 .rabbeim {
     display: flex;
     height: 160px;
@@ -183,12 +181,24 @@ nav li a {
     text-decoration: none;
 }
 
-.video_source {
+.directory {
     margin-left: 60px;
     background: #ccc;
     width: fit-content;
     padding: 2px 20px 2px 5px;
     border: 3px solid;
+}
+
+.back_icon {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    z-index: 1000;
+    color: white;
 }
 
 @media (max-width: 600px) {
