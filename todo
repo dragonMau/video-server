@@ -23,3 +23,16 @@
     - ability to edit video description
     - ability to request structure update (to update tags and lists)
 
+- add guide lines for me:
+    - change PLAYLISTS to GROUPS
+    - add slightly more typing
+    - structure is group_name.playlist_name.video_name
+    - so the variable is GROUPS: dict[group_name, dict[playlist_name, dict[video_name, type_video]]
+```
+{
+   groupA: {
+       playlistA: {
+           videoA: {}
+}}}
+```
+
