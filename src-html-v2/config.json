@@ -1,0 +1,15 @@
+{
+    "title": "Video Viewer",
+    "phrase_up": "Upper Phrase",
+    "phrase_down": "Bottom Phrase",
+    "down_bar_items": [
+        "Content1",
+        "Content2",
+        "Content3",
+        "Content4",
+        "Content5",
+        "Content6",
+        "Content7",
+        "Shonot"
+    ]
+}

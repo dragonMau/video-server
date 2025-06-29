@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 import os
 import requests
@@ -6,6 +5,7 @@ import re
 import sys
 import hashlib
 import json
+from urllib.parse import quote_plus
 
 env_file = Path('./edge/.env.local')
 if env_file.exists():
@@ -113,9 +113,19 @@ def get_by_name(_in: list[dict[str, str]], property: tuple[str, str], default=No
         if el.get(property[0]) == property[1]:
             return el
     return default
+def tag_to_route(tag:str):
+    """
+    Tag is "group_name.playlist_name"
+    Route is "group_name/playlist_name"
+    """
+    group, playlist = tag.strip().split('.')
+    route = quote_plus(group)+"/"+quote_plus(playlist)
+    return route
 def get_collections_playlists():
     COLLECTIONS: list[type_collection] = []
-    PLAYLISTS: dict[str, dict[str, type_video]] = {}
+    GROUPS: dict[str, dict[str, type_video]] = {}
+    # GROUPS.(groupname)PLAYLIST.(playlistname)VIDEO
+    # Test.A video.mp4
     for col in get_collections()['items']:
         # read items.(guid, name, videoCount); add items.(previewImageUrl)
         new_collection: type_collection =  {
@@ -136,30 +146,29 @@ def get_collections_playlists():
                 'description': 
                     f"<h2>{vid['title']}</h2>\n" +\
                     get_by_name(vid['metaTags'], ('property', 'description'), default={}).get('value', ''),
-                'groups': [f'All Videos.{new_collection["name"]}']
+                'tags': [f'All Videos.{new_collection["name"]}']
             }
-            new_video['groups'].extend(parse_groups(new_video['description']))
+            new_video['tags'].extend(parse_groups(new_video['description']))
             new_video["description"] += '\n'
-            for group in new_video['groups']:
-                # add to playlist
-                if group not in PLAYLISTS: PLAYLISTS[group] = {}
+            for tag in new_video['tags']:
+                group, playlist = tag.strip().split('.')
+                # add group and to group, playlist to playlists
+                if group not in GROUPS: GROUPS[group] = {}
+                _group = GROUPS[group]
+                if playlist not in _group: _group[playlist] = {}
+                _playlist = _group[playlist]
                 video_name = new_video['name']
-                if video_name in PLAYLISTS[group]:
+                if video_name in _playlist:
                     i = 1
-                    while f'({i}){video_name}' in PLAYLISTS[group]:
+                    while f'({i}){video_name}' in _playlist:
                         i += 1
                     video_name = f'({i}){video_name}'
-                PLAYLISTS[group][video_name] = new_video
-                new_video["description"] = new_video["description"].replace(f"#{group}\n", "")
-                new_video["description"] += f'<a href="#">#{group}</a>\n'
-                print("WARNING: Generate link url for tags in description!!!")
+                _playlist[video_name] = new_video
+                new_video["description"] = new_video["description"].replace(f"#{tag}\n", "")
+                new_video["description"] += f'<a href="/{tag_to_route(tag)}">#{tag}</a>\n'
             new_collection['videos'].append(new_video)
         COLLECTIONS.append(new_collection)
-    return COLLECTIONS, PLAYLISTS
-def copy_through(file_name: str):
-    (out_dir/file_name).write_bytes(
-        (src_dir/file_name).read_bytes()
-    )
+    return COLLECTIONS, GROUPS
 def process_keys(keys: dict[str, str|list|dict], len_base=None) -> tuple[dict[str, int], dict[str, str]]:
     new_keys = dict()
     len_base = len_base or dict()
@@ -220,7 +229,41 @@ def format_page(_in: str, keys_temp: dict[str, str|list[str]]) -> str:
     new_page_temp = update_template(_in, len_base)
     new_page = replace_all(new_page_temp, keys_temp)
     return new_page
+def copy_through(file_name: str):
+    (out_dir/file_name).write_bytes(
+        (src_dir/file_name).read_bytes()
+    )
+def _parse_init_video(init_video_txt: Path, GROUPS) -> dict:
+    init_video = init_video_txt.read_text().strip()
+    init_video_gp, init_video_name = init_video.split('\n')
+    init_video_group, init_video_playlist = init_video_gp.removeprefix('#').strip().split('.')
+    init_video_obj = GROUPS[init_video_group][init_video_playlist][init_video_name]
+    return {
+        'link': init_video_obj['embedUrl'],
+        'description': init_video_obj['description'],
+        'source': init_video_playlist,
+    }
+def _parse_bar_items(init_page_config, GROUPS) -> None:
+    down_bar_items = []
+    for item in init_page_config["down_bar_items"]:
+        down_bar_items.insert(0, {"name": item, "url": quote_plus(item)})
+    init_page_config["down_bar_items"] = down_bar_items
 
+    init_page_config["side_bar_items"] = []
+    for k in GROUPS.keys():
+        if get_by_name(init_page_config["down_bar_items"], ("name", k)):
+            # if it is on bottom, skip
+            continue
+        # if it is not, add to side_bar_items
+        init_page_config["side_bar_items"].insert(0,
+            {"name": k, "url": quote_plus(k)}
+        )
+def parse_init_page(config):
+    config['init_video'] = _parse_init_video((src_dir/'init_video.txt'), GROUPS)
+    _parse_bar_items(config, GROUPS)
+    init_page = (src_dir/'index.html').read_text()
+    formatted_init_page = format_page(init_page, config)
+    (out_dir/'index.html').write_text(formatted_init_page)
 
 # prepare out
 out_dir = Path('./out-html-v2')
@@ -229,63 +272,37 @@ clear_directory(out_dir)
 (out_dir/'media').mkdir()
 
 # make it!
-COLLECTIONS, PLAYLISTS = get_collections_playlists()
-from pprint import pprint
-pprint(PLAYLISTS)
+COLLECTIONS, GROUPS = get_collections_playlists()
 
-init_video = (src_dir/'init_video.txt').read_text().strip()
-init_video_playlist, init_video_name = init_video.split('\n')
-init_video_obj = PLAYLISTS[init_video_playlist][init_video_name]
+config = json.loads((src_dir/'config.json').read_text())
 
-init_page = (src_dir/'index.html').read_text()
-formatted_init_page = format_page(init_page,
-    {
-        'title': "Video Viewer",
-        'phrase_up': "Upper Phrase",
-        'phrase_down': "Bottom Phrase",
-        'init_video': {
-            'link': init_video_obj['embedUrl'],
-            'description': init_video_obj['description'],
-            'source': init_video_playlist,
-        },
-        'side_bar_items': [
-            {"name": "Home", "url": "/"},
-            {"name": "Content1", "url": "#"},
-            {"name": "All Videos", "url": "/All Videos"},
-        ],
-        'down_bar_items': [
-            {"name": "Content1", "url":  "#"},
-            {"name": "Content2", "url":  "#"},
-            {"name": "Content3", "url":  "#"},
-            {"name": "Content4", "url":  "#"},
-            {"name": "Content5", "url":  "#"},
-            {"name": "Content6", "url":  "#"},
-            {"name": "Content7", "url":  "#"},
-            {"name": "Shonot", "url":  "#"},
-        ],
-    }
-)
-(out_dir/'index.html').write_text(formatted_init_page)
+parse_init_page(config)
 
+groups_template = (src_dir/'group.html').read_text()
 
-groups_template = (src_dir/'groups.html').read_text()
-
-
-groups_page = replace_all(groups_template,
-    {
-        '{title}': "Video Viewer",
-        '{phrase_up}': "Upper Phrase",
-        '{phrase_down}': "Bottom Phrase",
-        '{directory}': "All Videos",
-    }
-)
-(out_dir/'All Videos').mkdir()
-(out_dir/'All Videos'/'index.html').write_text(groups_page)
+for group_name, group in GROUPS.items():
+    group_route = quote_plus(group_name)
+    group_page = format_page(groups_template,
+        {
+            'title': config['title'],
+            'phrase_up': config['phrase_up'],
+            'phrase_down': config['phrase_down'],
+            'directory': group_route,
+            'playlists': [
+                {"name": "name", "url": "url", "length": "0"}
+            ]
+        }
+    )
+    (out_dir/quote_plus(group_name)).mkdir(exist_ok=True)
+    (out_dir/quote_plus(group_name)/'index.html').write_text(group_page)
 
 
 copy_through('styles.css')
+copy_through('group_styles.css')
 copy_through('media/no_image.svg')
 copy_through('media/home.svg')
+copy_through('media/play.svg')
+copy_through('media/playlist.svg')
 
 if '--local-test' in sys.argv:
     os.system('python -m http.server -dout-html-v2')

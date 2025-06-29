@@ -62,7 +62,7 @@ footer {
     transform: translate(+50%, -50%);
     width: 30px;
     height: 30px;
-    background: #00689100;
+    /* background: #00689100; */
     cursor: pointer;
     z-index: 1000;
     appearance: none;
